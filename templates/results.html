@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+{% include "navbar.html" %}
+<div class="container">
+{% for img, pred in results.items() %}
+  <div class="card mb-3" style="max-width: 540px;">
+    <div class="row no-gutters">
+      <div class="col-md-4">
+        <img src="{{ img }}"  class="card-img">
+      </div>
+      <div class="col-md-8">
+        <div class="card-body">
+          <h5 class="card-title text-info">PREDICTION: {{ pred }}</h5>
+          <p class="card-text">lead-in to additional content. This content is a little bit longer.</p>
+          <p class="card-text"><small class="text-muted">Uploaded 1 mins ago</small></p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="../static/js/scripts.js"></script>
+{% endblock %}

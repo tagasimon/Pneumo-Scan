@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block body %}
 {% include "navbar.html" %}
-<section class="hero is-primary is-bold is-large">
-  <div class="hero-body"></div>
-</section>
+<div class="container has-text-centered">
+    <h1 class="title is-1">PNEUMONIA PREDICTION</h1>
+    <h2 class="subtitle is-4">FAST AND EASY</h2>
+    <form action="{{ url_for('handle_form') }}" enctype="multipart/form-data" method="post">
+            {{ dropzone.create() }}
+        <input type="submit" id="submit" value="Upload and Predict" class="button is-large is-success is-outlined">
+    </form>
+{{ dropzone.load_js() }}
+{{ dropzone.config() }}
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="../static/js/scripts.js"></script>

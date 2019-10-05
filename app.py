@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import division, print_function
 from scripts import tabledef
 from scripts import forms
 from scripts import helpers
@@ -8,8 +8,45 @@ import json
 import sys
 import os
 
+## More Imports
+import numpy as np ## Numpy
+import cv2 ## Open CV
+
+import os ##Operating System 
+import glob ## Global
+from flask_dropzone import Dropzone  ## Flask Dropzone
+
+# Keras
+from keras.applications.imagenet_utils import preprocess_input, decode_predictions
+from keras.models import load_model
+from keras.preprocessing import image
+
+# Model saved with Keras model.save()
+MODEL_PATH = 'models/new_model.h5'
+
+# Load your trained model
+model = load_model(MODEL_PATH)
+model._make_predict_function()  # Necessary
+print('Model loaded. Start serving...')
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 app = Flask(__name__)
 app.secret_key = os.urandom(12)  # Generic key for dev purposes only
+app.config.update(
+    UPLOADED_PATH=os.path.join(basedir, 'static/uploads'),
+    # Flask-Dropzone config:
+    DROPZONE_ALLOWED_FILE_TYPE='image',
+    DROPZONE_MAX_FILE_SIZE=3,
+    DROPZONE_MAX_FILES=10,
+    DROPZONE_IN_FORM=True,
+    DROPZONE_UPLOAD_ON_CLICK=True,
+    DROPZONE_UPLOAD_ACTION='handle_upload',  # URL or endpoint
+    DROPZONE_UPLOAD_BTN_ID='submit',
+)
+
+dropzone = Dropzone(app)
+
 
 # Heroku
 #from flask_heroku import Heroku
@@ -77,6 +114,51 @@ def settings():
         user = helpers.get_user()
         return render_template('settings.html', user=user)
     return redirect(url_for('login'))
+
+
+@app.route('/upload', methods=['POST'])
+def handle_upload():
+    ### NEW UPLOADS
+    for key, f in request.files.items():
+        if key.startswith('file'):
+            f.save(os.path.join(app.config['UPLOADED_PATH'], f.filename))
+    return '', 204
+
+@app.route('/form', methods=['POST'])
+def handle_form():
+    # title = request.form.get('title')
+    # description = request.form.get('description')
+
+    filenames = [img for img in glob.glob("static/uploads/*.jpeg")]
+
+    final_results = {}
+    for img in filenames:
+        # Make prediction
+        preds = predict(img, model)
+        # Process your result for human
+        pred_class = np.argmax(preds)  # Simple argmax
+        if pred_class == 1:
+            result = " PNEUMONIA + "
+        else:
+            result = " NORMAL "
+        final_results[img] = result
+
+    ##############################################################
+    #####    HANDLE PAYMENTS HERE BEFORE SHOWING RESULTS    ######
+    ##############################################################
+
+    return render_template("results.html", results=final_results)
+
+### This is the predict method
+def predict(img, model):
+    img = cv2.imread(img)
+    img = cv2.resize(img, (224, 224))
+    x = np.reshape(img, [224, 224, 3])
+    x = np.expand_dims(x, axis=0)
+    x = preprocess_input(x)
+    preds = model.predict(x)
+    return preds[0]
+
 
 
 # ======== Main ============================================================== #
