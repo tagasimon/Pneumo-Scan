@@ -11,6 +11,12 @@ import os
 ## More Imports
 import numpy as np ## Numpy
 import cv2 ## Open CV
+import paypalrestsdk as paypal
+from paypalrestsdk import *
+paypal.configure({
+    "mode": "sandbox",  # sandbox or live
+    "client_id": "AaVMBALfH-QL4gp-dVs7He0cM6dnZX2uRqsm7fJR337f1j630XZ2_mtJOA8MSxpVQU0tGuNQ4JoieUYw",
+    "client_secret": "EAYonfnZoVAMhtaw59b2-y1Ljv7z1BbmFSgzATurQtkmj-bBerU0ljBt5lg63iWOqg_deYoXQu4CtgKd"})
 
 import os ##Operating System 
 import glob ## Global
@@ -32,6 +38,7 @@ print('Model loaded. Start serving...')
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
+final_results = {}
 app.secret_key = os.urandom(12)  # Generic key for dev purposes only
 app.config.update(
     UPLOADED_PATH=os.path.join(basedir, 'static/uploads'),
@@ -130,8 +137,6 @@ def handle_form():
     # description = request.form.get('description')
 
     filenames = [img for img in glob.glob("static/uploads/*.jpeg")]
-
-    final_results = {}
     for img in filenames:
         # Make prediction
         preds = predict(img, model)
@@ -142,12 +147,7 @@ def handle_form():
         else:
             result = " NORMAL "
         final_results[img] = result
-
-    ##############################################################
-    #####    HANDLE PAYMENTS HERE BEFORE SHOWING RESULTS    ######
-    ##############################################################
-
-    return render_template("results.html", results=final_results)
+    return render_template("results.html", results=final_results, success=False)
 
 ### This is the predict method
 def predict(img, model):
@@ -159,6 +159,79 @@ def predict(img, model):
     preds = model.predict(x)
     return preds[0]
 
+@app.route('/paypal_Return', methods=['GET'])
+def paypal_Return():
+    # ID of the payment. This ID is provided when creating payment.
+    paymentId = request.args['paymentId']
+    payer_id = request.args['PayerID']
+    payment = paypal.Payment.find(paymentId)
+
+    # PayerID is required to approve the payment.
+    if payment.execute({"payer_id": payer_id}):  # return True or False
+        print("Payment[%s] execute successfully" % (payment.id))
+        #return 'Payment execute successfully!' + payment.id
+        return render_template("results.html", results=final_results, success=True)
+    else:
+        print(payment.error)
+        return 'Payment execute ERROR!'
+
+
+@app.route('/paypal_payment', methods=['GET'])
+def paypal_payment():
+    # Payment
+    # A Payment Resource; create one using
+    # the above types and intent as 'sale'
+    payment = paypal.Payment({
+        "intent": "sale",
+
+        # Payer
+        # A resource representing a Payer that funds a payment
+        # Payment Method as 'paypal'
+        "payer": {
+            "payment_method": "paypal"},
+
+        # Redirect URLs
+        "redirect_urls": {
+            "return_url": "http://127.0.0.1:5000/paypal_Return?success=true",
+            "cancel_url": "http://127.0.0.1:5000/paypal_Return?cancel=true"},
+
+        # Transaction
+        # A transaction defines the contract of a
+        # payment - what is the payment for and who
+        # is fulfilling it.
+        "transactions": [{
+
+            # ItemList
+            "item_list": {
+                "items": [{
+                    "name": "Pneumonia Prediction",
+                    "sku": "item",
+                    "price": "5.00",
+                    "currency": "USD",
+                    "quantity": 1}]},
+
+            # Amount
+            # Let's you specify a payment amount.
+            "amount": {
+                "total": "5.0",
+                "currency": "USD"},
+            "description": "This amount is charged for every Predictions on the Site"}]})
+
+    # Create Payment and return status
+    if payment.create():
+        print("Payment[%s] created successfully" % (payment.id))
+        # Redirect the user to given approval url
+        for link in payment.links:
+            if link.method == "REDIRECT":
+                # Convert to str to avoid google appengine unicode issue
+                # https://github.com/paypal/rest-api-sdk-python/pull/58
+                redirect_url = str(link.href)
+                print("Redirect for approval: %s" % (redirect_url))
+                return redirect(redirect_url)
+    else:
+        print("Error while creating payment:")
+        print(payment.error)
+        return "Error while creating payment"
 
 
 # ======== Main ============================================================== #

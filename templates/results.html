@@ -2,22 +2,32 @@
 {% block body %}
 {% include "navbar.html" %}
 <div class="container">
-{% for img, pred in results.items() %}
-  <div class="card mb-3" style="max-width: 540px;">
-    <div class="row no-gutters">
-      <div class="col-md-4">
-        <img src="{{ img }}"  class="card-img">
-      </div>
-      <div class="col-md-8">
-        <div class="card-body">
-          <h5 class="card-title text-info">PREDICTION: {{ pred }}</h5>
-          <p class="card-text">lead-in to additional content. This content is a little bit longer.</p>
-          <p class="card-text"><small class="text-muted">Uploaded 1 mins ago</small></p>
+{% if success %}
+  {% for img, pred in results.items() %}
+      <div class="card mb-3" style="max-width: 540px;">
+        <div class="row no-gutters">
+          <div class="col-md-4">
+            <img src="{{ img }}"  class="card-img">
+          </div>
+          <div class="col-md-8">
+            <div class="card-body">
+              <h5 class="card-title text-info">PREDICTION: {{ pred }}</h5>
+              <p class="card-text">lead-in to additional content. This content is a little bit longer.</p>
+              <p class="card-text"><small class="text-muted">Uploaded 1 mins ago</small></p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-{% endfor %}
+  {% endfor %}
+{% else %}
+    <h1>Please Complete the Payment</h1>
+    <a href="{{ url_for('paypal_payment') }}" class="button is-large">
+        <span class="icon is-success">
+            <i class="fa fa-paypal"></i>
+        </span>
+        <span>PAY WITH PAYPAL</span>
+      </a>
+{%endif%}
 </div>
 {% endblock %}
 {% block scripts %}
